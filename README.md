@@ -2,23 +2,25 @@
 
 **Sistema inteligente de diagnóstico e documentação de incidentes de infraestrutura de TI**
 
-> Avaliação Intermediária — IA Generativa | Stack: FastAPI + React + SQLite
+> Avaliações Intermediária e Final — IA Generativa | Stack: FastAPI + React + SQLite + Groq LLaMA 3
 
 ---
 
 ## O que o sistema faz
 
-InfraDoc AI é uma plataforma para técnicos e engenheiros de datacenter registrarem, diagnosticarem e acompanharem incidentes de infraestrutura. O técnico descreve o problema (rack afetado, equipamento, sintomas, histórico), e o sistema gera automaticamente um diagnóstico estruturado com causa raiz provável e próximos passos recomendados.
+InfraDoc AI é uma plataforma para técnicos e engenheiros de datacenter registrarem, diagnosticarem e acompanharem incidentes de infraestrutura. O técnico descreve o problema (rack afetado, equipamento, sintomas, histórico), e o sistema gera automaticamente um diagnóstico estruturado com causa raiz provável e próximos passos recomendados — via **Groq LLaMA 3-70B** (gratuito) ou modo mock quando sem chave configurada.
 
 **Telas implementadas:**
-- **Dashboard** — visão geral com estatísticas, gráfico de incidentes por severidade e rack, incidentes recentes
+- **Login / Criar Conta** — autenticação com e-mail obrigatório, senha, recuperação simulada
+- **Dashboard** — estatísticas, gráfico de incidentes por severidade e rack, incidentes recentes
 - **Lista de Incidentes** — filtros por status, severidade, busca por texto
 - **Novo Incidente** — formulário dinâmico com sugestões de sintomas por tipo de equipamento e seletor visual de severidade
-- **Detalhe do Incidente** — diagnóstico gerado, causa raiz, próximos passos, botão resolver/reabrir, exportar
-- **Inventário** — assets agrupados por rack, status em tempo real, adicionar novo asset
-- **Relatórios** — resumo executivo, exportação individual em .txt por incidente
-
-**Onde a IA atuaria:** Na versão atual (Avaliação Intermediária), o diagnóstico é gerado por regras estáticas baseadas em palavras-chave nos sintomas. Na Avaliação Final, este mock será substituído pelo Claude via Anthropic API, usando o system prompt em `prompts/system_prompt.txt`.
+- **Detalhe do Incidente** — diagnóstico gerado por IA, causa raiz, próximos passos; encerramento exige nota obrigatória
+- **Inventário** — assets agrupados por rack, status automático por severidade, adicionar novo asset
+- **Relatórios** — resumo executivo, solicitação de exportação com aprovação do admin
+- **Base de Conhecimento** — artigos de soluções documentadas pela equipe, busca, avaliação de utilidade
+- **Usuários** — gerenciamento de contas (admin), perfis Técnico e Administrador
+- **Solicitações de Exportação** — fluxo de aprovação admin para exportar relatórios
 
 ---
 
@@ -27,30 +29,36 @@ InfraDoc AI é uma plataforma para técnicos e engenheiros de datacenter registr
 ```
 infradoc-ai/
 ├── README.md
+├── .gitignore
 ├── backend/
-│   ├── main.py           # FastAPI — rotas, lógica mock, SQLite
-│   └── requirements.txt
+│   ├── main.py               # FastAPI — rotas, diagnóstico Groq/mock, SQLite
+│   ├── requirements.txt      # fastapi, uvicorn, pydantic, groq, python-dotenv
+│   └── .env                  # NÃO subir no GitHub — contém GROQ_API_KEY
 ├── frontend/
 │   ├── index.html
 │   ├── vite.config.js
 │   ├── package.json
 │   └── src/
-│       ├── App.jsx           # Router principal
-│       ├── api.js            # Client HTTP para o backend
-│       ├── index.css         # Design system completo
+│       ├── App.jsx               # Router principal + controle de autenticação
+│       ├── api.js                # Client HTTP para o backend
+│       ├── index.css             # Design system completo (dark, JetBrains Mono + Inter)
 │       ├── main.jsx
 │       ├── components/
-│       │   ├── Sidebar.jsx
-│       │   └── Toast.jsx
+│       │   ├── Sidebar.jsx       # Navegação com info do usuário e indicador de modo IA
+│       │   └── Toast.jsx         # Notificações globais
 │       └── pages/
-│           ├── Dashboard.jsx
-│           ├── Incidents.jsx
-│           ├── NewIncident.jsx
-│           ├── IncidentDetail.jsx
-│           ├── Assets.jsx
-│           └── Reports.jsx
+│           ├── Login.jsx             # Login, cadastro e recuperação de senha
+│           ├── Dashboard.jsx         # Visão geral com gráficos
+│           ├── Incidents.jsx         # Lista com filtros
+│           ├── NewIncident.jsx       # Formulário dinâmico
+│           ├── IncidentDetail.jsx    # Detalhe com diagnóstico IA + nota de encerramento
+│           ├── Assets.jsx            # Inventário por rack com status automático
+│           ├── Reports.jsx           # Relatórios com fluxo de solicitação
+│           ├── KnowledgeBase.jsx     # Base de conhecimento da equipe
+│           ├── Users.jsx             # Gerenciamento de usuários (admin)
+│           └── ExportRequests.jsx    # Aprovação de exportações (admin)
 ├── prompts/
-│   └── system_prompt.txt     # System prompt para integração com Claude
+│   └── system_prompt.txt     # System prompt para referência
 └── tools/
     └── tools.md              # Definições e justificativas das tools
 ```
@@ -59,14 +67,30 @@ infradoc-ai/
 
 ## Como rodar localmente
 
-### Backend
+### 1. Configurar a chave da IA (Groq)
+
+Crie o arquivo `backend/.env` com:
+
+```
+GROQ_API_KEY=gsk_sua_chave_aqui
+```
+
+Obtenha sua chave gratuita em: https://console.groq.com
+
+> Sem a chave, o sistema roda em **modo mock** com diagnósticos por regras estáticas.
+
+### 2. Backend
+
 ```bash
 cd backend
 pip install -r requirements.txt
 uvicorn main:app --reload --port 8000
 ```
 
-### Frontend
+> **Atenção:** na primeira execução ou após atualizações, delete `backend/infradoc.db` para recriar o banco com todas as tabelas.
+
+### 3. Frontend
+
 ```bash
 cd frontend
 npm install
@@ -75,78 +99,137 @@ npm run dev
 
 Acesse: `http://localhost:5173`
 
-### Endpoint público (ngrok)
+**Credenciais padrão:**
+```
+Usuário: admin
+Senha:   admin123
+```
+
+### 4. Endpoint público (ngrok)
+
 ```bash
-# Após subir backend e frontend:
 ngrok http 5173
 ```
 
 ---
 
+## Integração com IA — Groq LLaMA 3
+
+O sistema usa o **Groq** como provedor de IA com o modelo `llama3-70b-8192` — gratuito e sem necessidade de cartão de crédito.
+
+### Por que Groq e não Claude/OpenAI?
+- **Gratuito** — sem custo para desenvolvimento e avaliação
+- **Rápido** — Groq usa hardware especializado (LPU), respostas em menos de 1 segundo
+- **LLaMA 3-70B** — modelo open-source de alta qualidade, adequado para diagnóstico técnico
+
+### Parâmetros configurados
+
+| Parâmetro | Valor | Justificativa |
+|---|---|---|
+| Modelo | `llama3-70b-8192` | Melhor custo-benefício no Groq gratuito |
+| Temperatura | `0.2` | Respostas técnicas precisas, baixa criatividade |
+| Max tokens | `1024` | Suficiente para JSON completo de diagnóstico |
+| Output | JSON estruturado | Parse direto no frontend sem processamento extra |
+
+### Fallback automático
+Se a chave não estiver configurada ou a API retornar erro, o sistema cai automaticamente para o **modo mock** sem interromper o funcionamento.
+
+---
+
+## Funcionalidades em Detalhe
+
+### Status Automático de Assets por Severidade
+
+Ao abrir um incidente, o asset correspondente tem seu status atualizado automaticamente:
+
+| Severidade | Status do Asset | Cor |
+|---|---|---|
+| Crítico | Offline | 🔴 Vermelho |
+| Alto | Offline | 🔴 Vermelho |
+| Médio | Degradado | 🟡 Amarelo |
+| Baixo | Monitoring | 🔵 Azul |
+| Incidente resolvido | Online | 🟢 Verde |
+
+### Nota Obrigatória ao Encerrar Incidente
+Modal exige nota mínima de 10 caracteres ao encerrar. A nota fica registrada no histórico do incidente.
+
+### Fluxo de Exportação de Relatórios
+- **Técnico:** solicita exportação com motivo obrigatório (mínimo 15 caracteres)
+- **Admin:** revisa e aprova ou nega com nota opcional
+- **Técnico:** após aprovação, download liberado em `.txt`
+- Admin sempre exporta diretamente sem solicitação
+
+### Base de Conhecimento
+- Artigos de soluções documentadas, organizados por tipo de equipamento
+- Busca por título, sintoma ou palavra-chave
+- Contador de visualizações e marcação de utilidade
+- 5 artigos de exemplo pré-cadastrados
+
+---
+
 ## Escolhas de Design
 
-### Por que FastAPI + React?
-FastAPI gera documentação automática (Swagger em `/docs`), tem validação nativa via Pydantic, e é a stack que melhor se integra com a API da Anthropic futuramente — ambos são Python. React + Vite permite desenvolvimento rápido com componentes reutilizáveis.
+### FastAPI + React
+FastAPI com validação Pydantic e documentação automática (Swagger em `/docs`). React + Vite para frontend moderno com hot reload.
 
-### Por que SQLite?
-O problema não exige concorrência alta. SQLite é um único arquivo `.db`, sem necessidade de Docker ou servidor — instalação zero. A migração para PostgreSQL no futuro seria trivial com SQLAlchemy.
+### SQLite
+Arquivo único `.db`, sem Docker ou servidor. Zero configuração. Migração para PostgreSQL futura seria trivial com SQLAlchemy.
 
-### Por que design system próprio (CSS variáveis) e não Tailwind ou um UI kit?
-A audiência é técnica — engenheiros de TI. Uma UI com estética de terminal/IDE (fundo escuro, fonte mono, acentuação verde/teal, densidade alta) comunica credibilidade para esse público. Um kit genérico (Material UI, Ant Design) daria uma aparência corporativa genérica que não reflete o contexto de uso.
+### Groq como provedor de IA
+Escolha deliberada para uso gratuito em desenvolvimento. O system prompt e a estrutura de output em JSON são idênticos ao que seria usado com Claude ou GPT — troca de provedor requer apenas alterar 3 linhas no `main.py`.
 
-**Assinatura visual:** A combinação de `JetBrains Mono` para dados técnicos (IPs, IDs, comandos) com `Inter` para texto de interface cria hierarquia clara entre "dado de máquina" e "texto humano" — escolha deliberada para um produto de infraestrutura.
+### Design system próprio (não Tailwind/MUI)
+Estética de terminal/IDE para audiência técnica. `JetBrains Mono` para dados (IPs, IDs, comandos) e `Inter` para UI criam hierarquia visual clara.
 
-### Formulário dinâmico de incidentes
-Ao selecionar o tipo de equipamento, o formulário exibe sugestões de sintomas relevantes para aquele tipo. Isso reduz a fricção do técnico em campo e melhora a qualidade dos dados que o modelo de IA vai receber.
+### Autenticação no localStorage
+Decisão deliberada para manter o projeto sem backend de autenticação complexo. Em produção, migraria para SQLite com bcrypt.
 
 ---
 
 ## O que funcionou (com o agente de codificação)
 
-### Claude Code — o que deu bem:
-
 **1. Estrutura inicial do projeto**
 Prompt: *"Crie a estrutura de um projeto FastAPI + React + SQLite para um sistema de gerenciamento de incidentes de TI"*
-→ Gerou `main.py` com modelos Pydantic, rotas REST, CORS configurado e seed de dados em menos de 2 minutos. O código estava funcional de primeira.
+→ Gerou `main.py` com modelos Pydantic, rotas REST, CORS e seed de dados funcional de primeira.
 
-**2. Componentes React com lógica complexa**
-Prompt: *"Crie um formulário de novo incidente com sugestões de sintomas dinâmicas por tipo de equipamento, seletor visual de severidade com 4 opções e validação de campos obrigatórios"*
-→ O componente `NewIncident.jsx` foi gerado corretamente, incluindo o mapa de sugestões por tipo e a lógica de seleção visual de severidade. Funcionou sem edição manual.
+**2. Integração com Groq**
+Prompt: *"Integre o Groq com LLaMA 3-70B no endpoint de criação de incidente, com fallback automático para mock se a chave não estiver configurada"*
+→ Gerou a função `generate_groq_diagnosis()` com tratamento de erro e fallback corretamente.
 
-**3. Gráficos com Recharts**
-Prompt: *"Adicione no dashboard um PieChart de incidentes por severidade e um BarChart de incidentes por rack, usando Recharts"*
-→ Gerou os dois gráficos corretamente com tooltip customizado e cores semânticas por severidade.
+**3. Fluxo de aprovação de exportações**
+Prompt: *"Implemente fluxo onde técnico solicita exportação com motivo obrigatório e admin aprova ou nega"*
+→ Gerou rotas backend, modal de solicitação e tela de revisão admin sem erros.
 
-**4. Design system CSS**
-Prompt: *"Crie um design system CSS com variáveis para um produto de infraestrutura de TI com estética de terminal: fundo escuro, fonte JetBrains Mono para dados, Inter para UI, acentuação teal"*
-→ Gerou o arquivo `index.css` completo com sistema de tokens coerente. Nenhum ajuste manual necessário além de pequenas correções de especificidade.
+**4. Status automático de assets por severidade**
+Prompt: *"Ao criar incidente, atualizar status do asset: crítico/alto → offline, médio → degraded, baixo → monitoring (azul). Resolver → online"*
+→ Implementado diretamente no endpoint sem erros.
+
+**5. Base de conhecimento completa**
+Prompt: *"Crie base de conhecimento com CRUD, busca por palavras-chave, contador de visualizações e 5 artigos de exemplo"*
+→ Gerou tabela, seed, todas as rotas e componente React com expansão inline.
 
 ---
 
 ## O que não funcionou
 
-### 1. Roteamento após refactor
-Após reorganizar os componentes em pastas separadas (`pages/`, `components/`), o agente não atualizou automaticamente os imports no `App.jsx`. Precisei editar manualmente os caminhos de importação — erro simples mas que o agente não antecipou.
+**1. Roteamento após refactor**
+Após reorganizar componentes em pastas, imports não foram atualizados automaticamente.
+**Lição:** Sempre incluir no prompt: *"atualize todos os imports afetados"*.
 
-**Lição:** Ao pedir refactor de estrutura de arquivos, sempre incluir no prompt: *"atualize todos os imports afetados"*.
+**2. Responsividade**
+Grid `1fr 380px` do `IncidentDetail.jsx` quebra em telas menores. Não corrigido pois avaliação é em desktop.
 
-### 2. Responsividade no detalhe do incidente
-O grid `1fr 380px` do `IncidentDetail.jsx` quebra em telas menores. O agente gerou sem media queries. Não corrigi pois o avaliador usa desktop, mas seria necessário para produção.
+**3. Exportação PDF**
+`jsPDF` gerou código com formatação incorreta. Substituído por `.txt`.
 
-### 3. Autenticação
-Solicitei um sistema básico de login, mas o agente gerou código com JWT que introduziu dependências extras e bugs na lógica de refresh token. Optei por remover completamente — o escopo da avaliação intermediária não exige autenticação.
+**4. E-mail real de confirmação**
+SendGrid introduziu dependências desnecessárias. Substituído por simulação mock.
 
-### 4. Exportação PDF
-Tentei gerar relatórios em PDF com `jsPDF`. O agente gerou código que funcionou parcialmente — formatação incorreta da tabela. Substituí por exportação `.txt` simples, que atende ao objetivo sem dependência adicional.
+**5. Schema duplicado**
+Tabela `export_requests` foi criada duas vezes no `init_db` na primeira geração. Corrigido manualmente.
 
----
-
-## Próximos passos (Avaliação Final)
-
-1. **Substituir mock por Claude API** — o endpoint `/api/incidents` chamará `anthropic.messages.create()` com o system prompt em `prompts/system_prompt.txt`
-2. **Implementar tools** — `get_rack_inventory`, `get_incident_history`, `search_knowledge_base` e `create_maintenance_ticket` (ver `tools/tools.md`)
-3. **Adicionar streaming** — exibir o diagnóstico em tempo real conforme o modelo gera
-4. **Ajuste de temperatura** — testar `temperature=0.2` (respostas técnicas precisas, baixa criatividade) vs `temperature=0.7` (raciocínio mais abrangente)
+**6. JSON quebrado com temperatura alta**
+Com temperatura `0.7`, o LLaMA 3 adicionava texto fora do JSON quebrando o parse. Resolvido com temperatura `0.2` e instrução explícita no system prompt.
 
 ---
 
@@ -155,9 +238,10 @@ Tentei gerar relatórios em PDF com `jsPDF`. O agente gerou código que funciono
 **Ferramenta:** Claude (claude.ai)
 
 **Estratégia de prompting:**
-- Sempre iniciei com contexto: *"Estou construindo um sistema FastAPI + React para diagnóstico de infraestrutura de TI..."*
-- Construção incremental: uma tela por vez, testando antes de avançar
-- Prompts positivos e negativos: *"Use CSS variáveis nativas, não Tailwind. Não instale bibliotecas de UI como MUI ou Chakra."*
-- Pedidos de revisão: *"Revise o código acima e identifique possíveis bugs antes de entregar"*
+- Contexto sempre presente: *"Estou construindo FastAPI + React para diagnóstico de infraestrutura de TI..."*
+- Construção incremental: uma funcionalidade por vez, testando antes de avançar
+- Restrições explícitas: *"Use CSS variáveis nativas, não Tailwind. Não instale MUI ou Chakra"*
+- Iteração em erros: *"O agente gerou X mas o comportamento esperado é Y — corrija mantendo o restante intacto"*
 
-**Estimativa:** ~85% do código foi gerado pelo agente. Edições manuais foram principalmente em imports quebrados após refactoring e ajustes finos de CSS.
+**Estimativa:** ~85% do código foi gerado pelo agente. Edições manuais: imports quebrados após refactoring, schema duplicado no banco e ajustes finos de CSS e lógica de status de assets.
+# InfraDoc-AI-v1.0-Resid-ncia-IA-Generativa
