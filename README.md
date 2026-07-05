@@ -231,17 +231,4 @@ Tabela `export_requests` foi criada duas vezes no `init_db` na primeira geraçã
 **6. JSON quebrado com temperatura alta**
 Com temperatura `0.7`, o LLaMA 3 adicionava texto fora do JSON quebrando o parse. Resolvido com temperatura `0.2` e instrução explícita no system prompt.
 
----
-
-## Uso do Agente de Codificação
-
-**Ferramenta:** Claude (claude.ai)
-
-**Estratégia de prompting:**
-- Contexto sempre presente: *"Estou construindo FastAPI + React para diagnóstico de infraestrutura de TI..."*
-- Construção incremental: uma funcionalidade por vez, testando antes de avançar
-- Restrições explícitas: *"Use CSS variáveis nativas, não Tailwind. Não instale MUI ou Chakra"*
-- Iteração em erros: *"O agente gerou X mas o comportamento esperado é Y — corrija mantendo o restante intacto"*
-
-**Estimativa:** ~85% do código foi gerado pelo agente. Edições manuais: imports quebrados após refactoring, schema duplicado no banco e ajustes finos de CSS e lógica de status de assets.
-# InfraDoc-AI-v1.0-Resid-ncia-IA-Generativa
+---# InfraDoc-AI-v1.0-Resid-ncia-IA-Generativa
